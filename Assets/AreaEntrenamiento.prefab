@@ -160,8 +160,9 @@ MonoBehaviour:
     m_Bits: 0
   Objetivo: {fileID: 670089027113438301}
   multiplicador: 10
-  jumpForce: 3
-  maxAirFrames: 1000
+  jumpForce: 4.5
+  maxJumpHeight: 10
+  maxAirFrames: 60
 --- !u!114 &6535275003646511501
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -48,7 +48,7 @@ public class RAgente : Agent
     //funcion de acciones y politicas
     public float multiplicador = 10;
     
-    public float jumpForce = 12.0f;
+    public float jumpForce = 4.5f;
     public float maxJumpHeight = 10.0f; // Altura máxima de salto permitida
     public int maxAirFrames = 60; // Número máximo de fotogramas en el aire (a 60 FPS, esto sería equivalente a 2 segundos)
     private int currentAirFrames = 0; // Fotogramas actuales en el aire
@@ -72,10 +72,10 @@ public class RAgente : Agent
             groundCheck = false;
             rBody.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
 
-            // currentAirFrames++;
+            currentAirFrames++;
             if (currentAirFrames > maxAirFrames)
             {
-                SetReward(-0.1f); // Penalización por estar en el aire demasiado tiempo
+                SetReward(-0.01f); // Penalización por estar en el aire demasiado tiempo
             }else{
                 currentAirFrames = 0;
             }
