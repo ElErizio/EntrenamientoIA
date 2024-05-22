@@ -3,8 +3,14 @@ using Unity.MLAgents;
 using Unity.MLAgents.Sensors;
 using Unity.MLAgents.Actuators;
 
-public class RAgent : Agent
+public class RAgente : Agent
 {
+
+    public bool groundCheck = false;
+    public Transform positionCheck;
+    public LayerMask layerMask;
+
+
     Rigidbody rBody;
     // Start is called before the first frame update
     void Start()
@@ -13,13 +19,6 @@ public class RAgent : Agent
     }
 
     public Transform Objetivo;
-    public Transform paloCiego;
-
-    public LayerMask mask;
-    public LayerMask mask2;
-    public bool isGrounding = false;
-    //bool salto = false;
-    int countGoals;
     public override void OnEpisodeBegin()
     {
         //si te caes este va a ser tu punto de inicio
@@ -31,15 +30,7 @@ public class RAgent : Agent
         }
 
         //mover el objetivo dentro del plano de manera aleatoria
-        if ((countGoals < 3) || (countGoals % 2 == 0))
-        {
-            Objetivo.localPosition = new Vector3(Random.value * 8 - 4, 0.5f, Random.value * 8 - 4);
-        }
-        else
-        {
-            //Objetivo.localPosition = new Vector3(Random.value * 8 - 4, 0.5f, Random.value * 8 - 4);
-            Objetivo.localPosition = new Vector3(0.13f, .5f, 12);
-        }
+        Objetivo.localPosition = new Vector3(Random.value * 20 - 4, 0.5f, Random.value * 8 - 4);
     }
 
     //funcion para programar los sensores
@@ -51,64 +42,67 @@ public class RAgent : Agent
 
         //la velocidad del agente
         sensor.AddObservation(rBody.velocity.x);//1 observacion
+        sensor.AddObservation(rBody.velocity.y);//1 Observacion Adicional
         sensor.AddObservation(rBody.velocity.z);//1 observacion
-
-        sensor.AddObservation(isGrounding);
     }
     //funcion de acciones y politicas
     public float multiplicador = 10;
+    
+    public float jumpForce = 4.5f;
+    public float maxJumpHeight = 10.0f; // Altura máxima de salto permitida
+    public int maxAirFrames = 60; // Número máximo de fotogramas en el aire (a 60 FPS, esto sería equivalente a 2 segundos)
+    private int currentAirFrames = 0; // Fotogramas actuales en el aire
+
+
     public override void OnActionReceived(ActionBuffers actions)
     {
         base.OnActionReceived(actions);
-
-
-
-        isGrounding = Physics.CheckSphere(paloCiego.position, 0.1f, mask);
-
-        /*if (Physics.CheckSphere(paloCiego.position, 0.1f, mask2))
-            {
-                salto = false;
-                SetReward(0.5f);
-                print("Yei");
-            }
-        */
-
         //programar 2 actuadores
         Vector3 controlSignal = Vector3.zero;
         controlSignal.x = actions.ContinuousActions[0];
         controlSignal.z = actions.ContinuousActions[1];
+        controlSignal.y = actions.ContinuousActions[2];
         rBody.AddForce(controlSignal * multiplicador);
 
+        //groundCheck = Physics.CheckSphere(positionCheck.position, 0.3f, layerMask);
 
-        if (isGrounding)
+        // Detectar si el agente debe saltar
+        if (groundCheck && ShouldJump(actions))
         {
-            Vector3 jumpVector = Vector3.zero;
-            jumpVector.y = actions.ContinuousActions[2];
-            rBody.AddForce(jumpVector * 500);
-        }
+            groundCheck = false;
+            rBody.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
 
-        Quaternion targetRotation = Quaternion.LookRotation(rBody.velocity.normalized, Vector3.up);
-        Quaternion yOnlyRotation = Quaternion.Euler(0, targetRotation.eulerAngles.y, 0);
-        transform.rotation = yOnlyRotation;
+            currentAirFrames++;
+            if (currentAirFrames > maxAirFrames)
+            {
+                SetReward(-0.01f); // Penalización por estar en el aire demasiado tiempo
+            }else{
+                currentAirFrames = 0;
+            }
+        }
 
         //programar las politicas
         float distanciaobjetivo = Vector3.Distance(this.transform.localPosition, Objetivo.localPosition);
 
-
         //politica para cuando el agente agarre al objetivo
         if (distanciaobjetivo < 1.42f)
         {
-            SetReward(1.0f);
-            countGoals++;
+            SetReward(1.2f);
             EndEpisode();
         }
-        //politica en caso de que el agente sea tan pendejo y se caiga
 
+        //politica en caso de que el agente sea tan pendejo y se caiga
         else if (this.transform.localPosition.y < 0)
         {
             SetReward(-2.0f);
             EndEpisode();
         }
+        /*else if (this.transform.localPosition.y > 5)
+        {
+            SetReward(-2.0f);
+            EndEpisode();
+        }*/
+
         SetReward(-0.01f);
     }
 
@@ -117,6 +111,18 @@ public class RAgent : Agent
         var conti = actionsOut.ContinuousActions;
         conti[0] = Input.GetAxis("Horizontal");
         conti[1] = Input.GetAxis("Vertical");
-        conti[2] = Input.GetKeyDown(KeyCode.Space) ? 1 : 0;
+    }
+
+    private bool ShouldJump(ActionBuffers actions)
+    {
+        // Aquí decides si el agente debe saltar basándote en las acciones recibidas.
+        // Por ejemplo, puedes verificar si el valor de actions.ContinuousActions[3]
+        // (suponiendo que es tu acción de salto) supera un cierto umbral.
+        return actions.ContinuousActions[2] > 0.5f;
+    }
+
+    private void OnCollisionEnter(Collision collision)
+    {
+        groundCheck = true;
     }
 }
